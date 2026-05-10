@@ -1,0 +1,15 @@
+# Create a photo collage background + overlay images
+# Note: overlay images must be provided as base64 in the script call
+
+# Start with a canvas
+canvas width=1200 height=800 color=#ffffff
+
+# Add a header banner
+rect x=0 y=0 width=1200 height=200 color=#667eea filled=true
+text text="PHOTO COLLECTION" x=50 y=80 color=#ffffff font_size=64
+
+# The collage layout is best done via the create_collage tool,
+# but we can compose multiple overlays here:
+# overlay image=BASE64_1 x=50 y=250 opacity=1.0
+# overlay image=BASE64_2 x=420 y=250 opacity=1.0
+# overlay image=BASE64_3 x=790 y=250 opacity=1.0

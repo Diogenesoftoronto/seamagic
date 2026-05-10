@@ -1,0 +1,20 @@
+# Movie-style Poster
+# Creates a dramatic poster with gradient overlay and text
+
+# Step 1: Start with input image
+# (script receives base image via run_script inputImage parameter)
+
+# Blur background
+blur sigma=3
+vignette strength=0.6 color=#000000
+
+# Add gradient overlay
+tint color=#1a1a2e amount=0.3
+
+# Title text area
+drop_shadow offset_x=0 offset_y=4 blur=8 color=#000000ff
+text text="EPIC TITLE" x=100 y=700 color=#e94560 font_size=96
+
+# Subtitle
+line x1=100 y1=810 x2=900 y2=810 color=#ffffff thickness=2
+text text="A FILM BY YOU" x=100 y=840 color=#ffffff font_size=32

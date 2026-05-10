@@ -1,0 +1,7 @@
+;; Full Poster Design (from scratch)
+(define bg (image-gradient 1080 1350 "#0f0c29" "#302b63" 135.0))
+(define v (image-vignette bg 0.6 1.0 #f))
+(define half (image-halftone v 10 30.0 "monochrome"))
+(define noise-bg (image-noise half 0.05 "grain" 1))
+(define text-bg (image-draw-rectangle noise-bg 80 500 920 140 "#16213e" #t))
+(define result (image-draw-text text-bg "POSTER DESIGN" 200 560 "#e94560" 72))

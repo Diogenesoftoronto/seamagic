@@ -1,0 +1,45 @@
+# YouTube Thumbnail Template
+# Creates a dramatic 1280x720 YouTube thumbnail with bold text, gradient,
+# and eye-catching visual effects. Designed for maximum click-through rate.
+#
+# Usage:
+#   cargo run --example run_example legacy <input_image> examples/youtube_thumbnail.script output.png
+#
+# Or from scratch (no input image needed):
+#   cargo run --example run_example legacy any_image.png examples/youtube_thumbnail.script output.png
+
+# Start with a dramatic gradient background (1280x720 is standard YouTube thumbnail)
+canvas width=1280 height=720 color=#0f0f23
+gradient width=1280 height=720 start=#ff006e end=#8338ec angle=45
+
+# Add a subtle dark vignette to draw eyes to the center
+vignette strength=0.4 color=#000000
+
+# Decorative accent bar at the top
+rect x=0 y=0 width=1280 height=8 color=#ff006e filled=true
+
+# Main title background for contrast
+rect x=60 y=420 width=1160 height=200 color=#000000 filled=true radius=16
+rect x=70 y=430 width=1140 height=180 color=#1a1a2e filled=true radius=12
+
+# Drop shadow for title (applied before text)
+drop_shadow offset_x=0 offset_y=6 blur=16 color=#000000cc
+
+# Main eye-catching title
+# (Keep text short -- YouTube thumbnails need short punchy text)
+text text="THIS CHANGES" x=180 y=480 color=#ffffff font_size=96
+
+# Accent color second line
+text text="EVERYTHING" x=220 y=560 color=#ff006e font_size=96
+
+# Subtle face highlight area suggestion (bright corner)
+circle x=1100 y=100 radius=60 color=#ffbe0b filled=true
+
+# Bottom info bar
+rect x=0 y=700 width=1280 height=20 color=#8338ec filled=true
+
+# Small YouTube-style play button hint in corner
+circle x=1100 y=600 radius=40 color=#ff0000 filled=true
+
+# Optional: noise/grain overlay for texture
+noise amount=0.03 noise_type=grain seed=42

@@ -1,0 +1,6 @@
+# Profile Picture with Circular Mask
+# Takes input image, crops to square, then applies circular mask
+
+crop_center width=500 height=500
+blur sigma=0.5
+shape_mask shape=circle x=250 y=250 width=500 height=500 feather=true

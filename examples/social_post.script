@@ -1,0 +1,19 @@
+# Social Media Post Template
+# Creates a 1080x1080 social media post with gradient, text, and decorative elements
+
+canvas width=1080 height=1080 color=#1a1a2e
+gradient width=1080 height=1080 start=#667eea end=#764ba2 angle=135
+vignette strength=0.3
+
+# Main text background
+rect x=80 y=380 width=920 height=140 color=#16213e filled=true radius=20
+rect x=90 y=390 width=900 height=120 color=#0f3460 filled=true radius=15
+
+# Text
+text text="HELLO WORLD" x=200 y=445 color=#e94560 font_size=72
+
+# Decorative circles
+circle x=150 y=200 radius=40 color=#e94560 filled=true
+circle x=950 y=250 radius=60 color=#533483 filled=true
+circle x=200 y=900 radius=30 color=#e94560 filled=true
+circle x=900 y=800 radius=45 color=#533483 filled=true
