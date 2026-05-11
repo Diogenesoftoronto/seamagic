@@ -256,6 +256,16 @@ body {
     z-index: 2;
 }
 
+.hero-logo {
+    margin-bottom: 20px;
+}
+
+.hero-logo img {
+    display: block;
+    margin: 0 auto;
+    filter: drop-shadow(0 4px 20px rgba(92, 124, 250, 0.25));
+}
+
 .hero-badge {
     display: inline-flex;
     align-items: center;

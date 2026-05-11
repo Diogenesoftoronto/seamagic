@@ -1,6 +1,7 @@
 /target
 Cargo.lock
 *.png
+!seamagic_logo.png
 *.jpg
 *.jpeg
 *.gif

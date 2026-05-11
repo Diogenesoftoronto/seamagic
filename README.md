@@ -1,5 +1,9 @@
 # seamagic
 
+<p align="center">
+  <img src="seamagic_logo.png" alt="seamagic logo" width="200">
+</p>
+
 A Rust image design toolkit with both a CLI and an MCP (Model Context Protocol) server. Think of it as giving your AI — or yourself — a Canva-like toolkit for image manipulation.
 
 > "The computer programmer is a creator of universes for which he alone is the lawgiver."
