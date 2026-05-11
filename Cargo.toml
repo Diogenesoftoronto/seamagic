@@ -27,6 +27,7 @@ tracing-subscriber = "0.3"
 async-trait = "0.1"
 steel-core = "0.8.2"
 lazy_static = "1.5"
+rayon = "1.10"
 reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
 rmcp = { version = "1.6", features = ["server", "transport-io"] }
 clap = { version = "4.5", features = ["derive"] }

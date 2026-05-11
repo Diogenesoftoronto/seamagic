@@ -1,4 +1,4 @@
-use image::{DynamicImage, Rgba, ImageBuffer, GenericImage, GenericImageView};
+use image::{DynamicImage, Rgba, ImageBuffer};
 use imageproc::drawing;
 use serde::{Deserialize, Serialize};
 

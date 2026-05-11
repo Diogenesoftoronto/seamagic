@@ -7,7 +7,24 @@ cd /home/diogenes/Projects/mcp-image-design
 cargo build --release
 ```
 
-Binary: `target/release/mcp-image-design`
+Binary: `target/release/seamagic`
+
+## MCP Server Tools
+
+The binary exposes five MCP tools when run as a stdio server:
+
+1. **`view_diff`** — Compare images. Modes: `side_by_side`, `grid`, `pixel_diff`. Provides result + compressed preview.
+2. **`run_steel`** — Execute a Steel Scheme script for complex multi-step editing. Pass `inputImage` as base64, access as `"input"` in Scheme, assign final to `result`.
+3. **`edit_image`** — Apply a single operation directly (blur, brightness, contrast, grayscale, tint, vignette, duotone, crop, resize, rotate, flip, draw text/shapes, noise, drop shadow). Faster than Scheme for one-shot edits.
+4. **`create_image`** — Generate images from scratch: solid canvas, linear gradient, or framed canvas. No input image needed.
+5. **`get_info`** — Get dimensions and format metadata from a base64 image.
+
+Example Steel script:
+```scheme
+(define base "input")
+(define blurred (image-blur base 2.0))
+(define result (image-vignette blurred 0.5 1.0 #f))
+```
 
 ## Running Example Scripts on Images
 

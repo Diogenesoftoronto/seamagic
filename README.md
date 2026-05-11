@@ -2,7 +2,8 @@
 
 A Rust image design toolkit with both a CLI and an MCP (Model Context Protocol) server. Think of it as giving your AI — or yourself — a Canva-like toolkit for image manipulation.
 
-> "I made this because I needed tools that brought image."
+> "The computer programmer is a creator of universes for which he alone is the lawgiver."
+> — Joseph Weizenbaum
 
 ## Installation
 
@@ -19,6 +20,93 @@ cargo build --release
 ```
 
 Binary: `target/release/seamagic`
+
+## Getting Started
+
+### As a CLI Tool
+
+Edit a single photo with one command:
+
+```bash
+seamagic blur photo.png -o blurred.png --sigma 3.0
+seamagic vignette photo.png -o dark-edges.png --strength 0.6
+seamagic draw-text photo.png -o captioned.png --text "Hello" --color "#ff0000" --size 48
+```
+
+Generate images from nothing:
+
+```bash
+seamagic canvas -o black.png --width 1080 --height 1080 --color "#000000"
+seamagic gradient -o sunset.png --width 1920 --height 1080 --start "#ff7e5f" --end "#feb47b" --angle 135
+```
+
+Chain operations with a Scheme script (Steel DSL):
+
+```bash
+cargo run --example run_example -- scheme \
+  photo.jpg examples/cyberpunk_glitch.scm output.png
+```
+
+### As an MCP Server
+
+```bash
+# Start the server
+seamagic
+
+# Or explicitly
+seamagic mcp
+```
+
+Then use any MCP client (Claude, Cursor, etc.):
+
+```json
+{
+  "mcpServers": {
+    "seamagic": {
+      "command": "/path/to/seamagic"
+    }
+  }
+}
+```
+
+### With tcli (Terminal CLI for AI MCP)
+
+```bash
+# Get image dimensions
+tcli seamagic get_info --image "$(base64 -w0 photo.png)"
+
+# Apply a quick blur
+tcli seamagic edit_image \
+  --image "$(base64 -w0 photo.png)" \
+  --operation blur \
+  --sigma 2.5 \
+  --output_file blurred.png
+
+# Create a canvas
+tcli seamagic create_image \
+  --type canvas \
+  --width 1080 --height 1080 \
+  --color "#1a1a2e" \
+  --output_file bg.png
+
+# Run a full Scheme pipeline
+tcli seamagic run_steel \
+  --inputImage "$(base64 -w0 portrait.jpg)" \
+  --script '((define b "input")
+    (define w (image-warp b "wave" 15.0 0.08))
+    (define g (image-glitch w "rgb_split" 0.7 42))
+    (define c (image-chromatic-aberration g 8.0 #t))
+    (define s (image-scanlines c 3 0.25 1))
+    (define result (image-posterize s 6)))' \
+  --output_file cyberpunk.png
+
+# Compare two images side-by-side
+tcli seamagic view_diff \
+  --mode side_by_side \
+  --originalImage "$(base64 -w0 original.png)" \
+  --editedImage "$(base64 -w0 edited.png)" \
+  --output_file comparison.png
+```
 
 ## CLI Usage
 
@@ -115,7 +203,24 @@ seamagic pipeline input.png -o output.png --config pipeline.json
 
 ## As an MCP Server
 
-For AI agent integration:
+When invoked without arguments, `seamagic` runs as an MCP stdio server with five tools:
+
+### `view_diff`
+Compare images visually. Modes: `side_by_side`, `grid`, `pixel_diff`.
+
+### `run_steel`
+Execute a Steel Scheme script for complex multi-step image editing. Input via base64, all operations exposed.
+
+### `edit_image`
+Apply a single operation directly: blur, brightness, contrast, grayscale, tint, vignette, duotone, crop, resize, rotate, flip, draw text/shapes, noise, drop shadow. Faster than Scheme for one-shot edits.
+
+### `create_image`
+Generate images from scratch: solid canvas, linear gradient, or framed canvas. No input needed.
+
+### `get_info`
+Get dimensions and basic metadata from a base64 image.
+
+### Config
 
 ```json
 {
@@ -127,15 +232,13 @@ For AI agent integration:
 }
 ```
 
-When invoked without arguments, `seamagic` runs as an MCP stdio server.
-
 ## Steel Scheme Scripting
 
-Chain operations using embedded [Steel Scheme](https://github.com/mattwparas/steel):
+Chain operations using embedded [Steel Scheme](https://github.com/mattwparas/steel). The input image is bound as `"input"`; assign the final result to `result`:
 
 ```scheme
 (define bg (image-canvas 1080 1080 "#1a1a2e"))
-(define grad (image-gradient 1080 1080 "#667eea" "#764ba2" 135))
+(define grad (image-gradient 1080 1080 "#667eea" "#764ba2" 135.0))
 (define v (image-vignette grad 0.3 1.0 #f))
 (define result (image-draw-text v "HELLO WORLD" 200 445 "#e94560" 72))
 ```
@@ -145,10 +248,10 @@ Chain operations using embedded [Steel Scheme](https://github.com/mattwparas/ste
 - **Transforms**: crop, resize, rotate, flip
 - **Filters**: blur, brightness, contrast, grayscale, tint, vignette, duotone
 - **Distortions**: liquify, warp, glitch, chromatic aberration, pixel sort, scanlines, halftone, posterize, noise, kaleidoscope, emboss, edge detect, solarize
-- **Drawing**: text, rectangles, circles, lines, polygons, gradients
-- **Compositing**: overlay with blend modes (normal, multiply, screen, overlay)
-- **Masking**: shape masks with feathering
-- **AI Generation**: OpenAI DALL-E, fal.ai GPT Image 2 (via MCP tools)
+- **Drawing**: text (ab_glyph with system fonts), rectangles, circles, lines, gradients, canvas
+- **Compositing**: overlay with blend modes, drop shadows, shape masks
+- **AI**: SAM-2 segmentation, background removal, fal.ai image editing
+- **Parallel**: Pixel-level filters (tint, duotone, vignette) use rayon for multi-threading
 
 ## License
 

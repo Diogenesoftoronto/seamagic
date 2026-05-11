@@ -73,26 +73,43 @@ fn to_u32(v: &SteelVal) -> Result<u32, String> {
     Ok(to_f64(v)? as u32)
 }
 
-fn steel_crop(img_id: String, x: SteelVal, y: SteelVal, width: SteelVal, height: SteelVal) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = crop(&img, &CropParams {
-        x: to_u32(&x)?, y: to_u32(&y)?,
-        width: to_u32(&width)?, height: to_u32(&height)?,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
+// ─── Macro for boilerplate reduction ───
+//
+// steel_op!(fn_name(param: Type), |img| operation(&img, &Params { ... }))
+//
+// Generates:
+//   fn fn_name(img_id: String, param: Type) -> Result<String, String> {
+//       let img = get_img(&img_id)?;
+//       let result = operation(&img, &Params { ... });
+//       let id = new_id();
+//       register_img(&id, result);
+//       Ok(id)
+//   }
+//
+macro_rules! steel_op {
+    ($name:ident($($param:ident: $pty:ty),*), |$img:ident| $body:expr) => {
+        fn $name(img_id: String, $($param: $pty),*) -> Result<String, String> {
+            let $img = get_img(&img_id)?;
+            let result = $body;
+            let id = new_id();
+            register_img(&id, result);
+            Ok(id)
+        }
+    };
 }
 
-fn steel_crop_center(img_id: String, width: SteelVal, height: SteelVal) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = crop_from_center(&img, &CropFromCenterParams {
+steel_op!(steel_crop(x: SteelVal, y: SteelVal, width: SteelVal, height: SteelVal), |img|
+    crop(&img, &CropParams {
+        x: to_u32(&x)?, y: to_u32(&y)?,
         width: to_u32(&width)?, height: to_u32(&height)?,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
+
+steel_op!(steel_crop_center(width: SteelVal, height: SteelVal), |img|
+    crop_from_center(&img, &CropFromCenterParams {
+        width: to_u32(&width)?, height: to_u32(&height)?,
+    })
+);
 
 fn steel_smart_crop(img_id: String, aspect_ratio: Option<f64>, target_width: Option<f64>, target_height: Option<f64>) -> Result<String, String> {
     let img = get_img(&img_id)?;
@@ -126,147 +143,92 @@ fn steel_resize(img_id: String, width: Option<SteelVal>, height: Option<SteelVal
     Ok(id)
 }
 
-fn steel_thumbnail(img_id: String, size: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = thumbnail(&img, &ThumbnailParams { size: size as u32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_thumbnail(size: f64), |img|
+    thumbnail(&img, &ThumbnailParams { size: size as u32 })
+);
 
-fn steel_rotate(img_id: String, degrees: f64, bg: Option<String>) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = rotate(&img, &RotateParams {
+steel_op!(steel_rotate(degrees: f64, bg: Option<String>), |img|
+    rotate(&img, &RotateParams {
         degrees: degrees as f32,
         background_color: bg,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
-fn steel_flip(img_id: String, h: bool, v: bool) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = flip(&img, &FlipParams { horizontal: h, vertical: v });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_flip(h: bool, v: bool), |img|
+    flip(&img, &FlipParams { horizontal: h, vertical: v })
+);
 
-fn steel_blur(img_id: String, sigma: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = blur(&img, &BlurParams { sigma: sigma as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_blur(sigma: f64), |img|
+    blur(&img, &BlurParams { sigma: sigma as f32 })
+);
 
-fn steel_brightness(img_id: String, value: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = brightness(&img, &BrightnessParams { value: value as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_brightness(value: isize), |img|
+    brightness(&img, &BrightnessParams { value: value as f32 })
+);
 
-fn steel_contrast(img_id: String, value: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = filters::contrast(&img, &ContrastParams { value: value as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_contrast(value: isize), |img|
+    filters::contrast(&img, &ContrastParams { value: value as f32 })
+);
 
-fn steel_grayscale(img_id: String) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = grayscale(&img, &GrayscaleParams { mode: "luma".to_string() });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_grayscale(), |img|
+    grayscale(&img, &GrayscaleParams { mode: "luma".to_string() })
+);
 
-fn steel_tint(img_id: String, color: String, amount: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = tint(&img, &TintParams { color, amount: amount as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
 
-fn steel_vignette(img_id: String, strength: f64, radius: f64, color: Option<String>) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = vignette(&img, &VignetteParams {
+steel_op!(steel_tint(color: String, amount: f64), |img|
+    tint(&img, &TintParams { color, amount: amount as f32 })
+);
+
+steel_op!(steel_vignette(strength: f64, radius: f64, color: Option<String>), |img|
+    vignette(&img, &VignetteParams {
         strength: strength as f32,
         radius: radius as f32,
         color,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
-fn steel_duotone(img_id: String, shadow_color: String, highlight_color: String) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = duotone(&img, &DuotoneParams { shadow_color, highlight_color });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_duotone(shadow_color: String, highlight_color: String), |img|
+    duotone(&img, &DuotoneParams { shadow_color, highlight_color })
+);
 
-fn steel_draw_text(img_id: String, text: String, x: SteelVal, y: SteelVal, color: String, size: SteelVal) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = draw_text(&img, &TextParams {
+steel_op!(steel_draw_text(text: String, x: SteelVal, y: SteelVal, color: String, size: SteelVal), |img|
+    draw_text(&img, &TextParams {
         text, x: to_f64(&x)? as i32, y: to_f64(&y)? as i32,
         color, font_size: to_u32(&size)?,
         align: "left".to_string(),
         background_color: None,
         max_width: None,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
-fn steel_draw_rectangle(img_id: String, x: SteelVal, y: SteelVal, width: SteelVal, height: SteelVal, color: String, filled: bool) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = draw_rectangle(&img, &RectangleParams {
+steel_op!(steel_draw_rectangle(x: SteelVal, y: SteelVal, width: SteelVal, height: SteelVal, color: String, filled: bool), |img|
+    draw_rectangle(&img, &RectangleParams {
         x: to_f64(&x)? as i32, y: to_f64(&y)? as i32,
         width: to_u32(&width)?, height: to_u32(&height)?,
         color, filled,
         border_radius: 0,
         stroke_width: 0,
         stroke_color: None,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
-fn steel_draw_circle(img_id: String, x: isize, y: isize, radius: isize, color: String, filled: bool) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = draw_circle(&img, &CircleMaskParams {
+steel_op!(steel_draw_circle(x: isize, y: isize, radius: isize, color: String, filled: bool), |img|
+    draw_circle(&img, &CircleMaskParams {
         x: x as i32, y: y as i32,
         radius: radius as u32,
         color, filled,
         stroke_width: 0,
         stroke_color: None,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
-fn steel_draw_line(img_id: String, x1: SteelVal, y1: SteelVal, x2: SteelVal, y2: SteelVal, color: String, thickness: SteelVal) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = draw_line(&img, &LineParams {
+steel_op!(steel_draw_line(x1: SteelVal, y1: SteelVal, x2: SteelVal, y2: SteelVal, color: String, thickness: SteelVal), |img|
+    draw_line(&img, &LineParams {
         x1: to_f64(&x1)? as i32, y1: to_f64(&y1)? as i32,
         x2: to_f64(&x2)? as i32, y2: to_f64(&y2)? as i32,
         color, thickness: to_u32(&thickness)?,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
 fn steel_overlay(base_id: String, overlay_id: String, x: SteelVal, y: SteelVal, opacity: f64) -> Result<String, String> {
     let base = get_img(&base_id)?;
@@ -292,122 +254,67 @@ fn steel_apply_mask(img_id: String, mask_id: String) -> Result<String, String> {
     Ok(id)
 }
 
-fn steel_drop_shadow(img_id: String, offset_x: SteelVal, offset_y: SteelVal, blur_radius: SteelVal, color: String) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = drop_shadow(&img, &ShadowParams {
+   
+steel_op!(steel_drop_shadow(offset_x: SteelVal, offset_y: SteelVal, blur_radius: SteelVal, color: String), |img|
+    drop_shadow(&img, &ShadowParams {
         offset_x: to_f64(&offset_x)? as i32,
         offset_y: to_f64(&offset_y)? as i32,
         blur_radius: to_u32(&blur_radius)?,
         color,
-    });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+    })
+);
 
-fn steel_liquify(img_id: String, mode: String, center_x: f64, center_y: f64, radius: f64, strength: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = liquify(&img, &LiquifyParams { mode, center_x: center_x as f32, center_y: center_y as f32, radius: radius as f32, strength: strength as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_liquify(mode: String, center_x: f64, center_y: f64, radius: f64, strength: f64), |img|
+    liquify(&img, &LiquifyParams { mode, center_x: center_x as f32, center_y: center_y as f32, radius: radius as f32, strength: strength as f32 })
+);
 
-fn steel_warp(img_id: String, mode: String, amplitude: f64, frequency: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = warp(&img, &WarpParams { mode, amplitude: amplitude as f32, frequency: frequency as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_warp(mode: String, amplitude: f64, frequency: f64), |img|
+    warp(&img, &WarpParams { mode, amplitude: amplitude as f32, frequency: frequency as f32 })
+);
 
-fn steel_glitch(img_id: String, mode: String, intensity: f64, seed: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = glitch(&img, &GlitchParams { mode, intensity: intensity as f32, seed: seed as u32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_glitch(mode: String, intensity: f64, seed: isize), |img|
+    glitch(&img, &GlitchParams { mode, intensity: intensity as f32, seed: seed as u32 })
+);
 
-fn steel_chromatic_aberration(img_id: String, shift: f64, auto: bool) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = chromatic_aberration(&img, &ChromaticAberrationParams { shift: shift as f32, auto });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_chromatic_aberration(shift: f64, auto: bool), |img|
+    chromatic_aberration(&img, &ChromaticAberrationParams { shift: shift as f32, auto })
+);
 
-fn steel_pixel_sort(img_id: String, axis: String, threshold_low: f64, threshold_high: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = pixel_sort(&img, &PixelSortParams { axis, threshold_low: threshold_low as f32, threshold_high: threshold_high as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_pixel_sort(axis: String, threshold_low: f64, threshold_high: f64), |img|
+    pixel_sort(&img, &PixelSortParams { axis, threshold_low: threshold_low as f32, threshold_high: threshold_high as f32 })
+);
 
-fn steel_scanlines(img_id: String, spacing: isize, opacity: f64, thickness: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = scanlines(&img, &ScanlinesParams { spacing: spacing as u32, opacity: opacity as f32, thickness: thickness as u32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_scanlines(spacing: isize, opacity: f64, thickness: isize), |img|
+    scanlines(&img, &ScanlinesParams { spacing: spacing as u32, opacity: opacity as f32, thickness: thickness as u32 })
+);
 
-fn steel_halftone(img_id: String, dot_size: isize, angle: f64, mode: String) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = halftone(&img, &HalftoneParams { dot_size: dot_size as u32, angle: angle as f32, mode });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_halftone(dot_size: isize, angle: f64, mode: String), |img|
+    halftone(&img, &HalftoneParams { dot_size: dot_size as u32, angle: angle as f32, mode })
+);
 
-fn steel_posterize(img_id: String, levels: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = posterize(&img, &PosterizeParams { levels: levels as u8 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_posterize(levels: isize), |img|
+    posterize(&img, &PosterizeParams { levels: levels as u8 })
+);
 
-fn steel_noise(img_id: String, amount: f64, noise_type: String, seed: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = noise(&img, &NoiseParams { amount: amount as f32, noise_type, seed: seed as u32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_noise(amount: f64, noise_type: String, seed: isize), |img|
+    noise(&img, &NoiseParams { amount: amount as f32, noise_type, seed: seed as u32 })
+);
 
-fn steel_kaleidoscope(img_id: String, segments: isize, offset: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = kaleidoscope(&img, &KaleidoscopeParams { segments: segments as u32, offset: offset as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_kaleidoscope(segments: isize, offset: f64), |img|
+    kaleidoscope(&img, &KaleidoscopeParams { segments: segments as u32, offset: offset as f32 })
+);
 
-fn steel_emboss(img_id: String, strength: f64) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = emboss(&img, &EmbossParams { strength: strength as f32 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_emboss(strength: f64), |img|
+    emboss(&img, &EmbossParams { strength: strength as f32 })
+);
 
-fn steel_edge_detect(img_id: String, threshold: isize, invert: bool) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = edge_detect(&img, &EdgeDetectParams { threshold: threshold as u8, invert });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_edge_detect(threshold: isize, invert: bool), |img|
+    edge_detect(&img, &EdgeDetectParams { threshold: threshold as u8, invert })
+);
 
-fn steel_solarize(img_id: String, threshold: isize) -> Result<String, String> {
-    let img = get_img(&img_id)?;
-    let result = solarize(&img, &SolarizeParams { threshold: threshold as u8 });
-    let id = new_id();
-    register_img(&id, result);
-    Ok(id)
-}
+steel_op!(steel_solarize(threshold: isize), |img|
+    solarize(&img, &SolarizeParams { threshold: threshold as u8 })
+);
 
 // ─── Generators (no input image) ───
 

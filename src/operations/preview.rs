@@ -1,4 +1,3 @@
-use base64::Engine;
 use image::{DynamicImage, GenericImageView, ImageFormat};
 use std::io::Cursor;
 
