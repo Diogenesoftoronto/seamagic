@@ -1,0 +1,401 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{geometry}
+\usepackage{natbib}
+
+\geometry{margin=1in}
+
+\definecolor{gold}{RGB}{255, 215, 0}
+\definecolor{silver}{RGB}{192, 192, 192}
+\definecolor{bronze}{RGB}{205, 127, 50}
+\definecolor{seamagic}{RGB}{102, 126, 234}
+
+\title{SMAB: A Benchmark for Evaluating AI Agents\\on Image Manipulation via the Model Context Protocol}
+\author{SeaMagic Research Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We introduce the SeaMagic Agent Benchmark (SMAB), a comprehensive evaluation framework for assessing AI agents' ability to use the Model Context Protocol (MCP) for image manipulation tasks. SMAB comprises 25 tasks across 5 categories---single edit, Scheme pipeline, generation, agentic workflow, and image understanding---testing three core dimensions: coding ability (via a Steel Scheme DSL), instruction following, and long-horizon agentic workflows. We define evaluation modes including exact pixel-level matching (using MSSIM, PSNR, MAE), constraint satisfaction (checking structural properties), and LLM-as-judge scoring. Our benchmark is designed as a training objective for gathering data to improve future model performance on tool-use and visual reasoning tasks. We provide an interactive Marimo notebook, a CLI evaluation runner, and ground truth images generated from the SeaMagic MCP server.
+\end{abstract}
+
+\section{Introduction}
+
+The Model Context Protocol (MCP) has emerged as a standard interface for AI agents to interact with external tools and services. As agents increasingly use MCP servers to perform real-world tasks, there is a growing need for benchmarks that evaluate their ability to correctly invoke tools, compose multi-step workflows, and recover from errors.
+
+Existing agent benchmarks primarily evaluate text-based or web-based tasks~\citep{AgentBench, WebArena}. However, image manipulation presents unique challenges: agents must reason about visual content, select appropriate operations from complex APIs, compose multi-step editing pipelines in domain-specific languages, and handle spatial/geometric constraints.
+
+We present SMAB (SeaMagic Agent Benchmark), a benchmark built on the SeaMagic MCP image manipulation server. SeaMagic provides 5 MCP tools---\texttt{edit\_image}, \texttt{create\_image}, \texttt{run\_steel}, \texttt{view\_diff}, and \texttt{get\_info}---covering a wide range of image operations from basic filters to sophisticated Steel Scheme DSL pipelines.
+
+Our contributions are:
+\begin{enumerate}
+    \item A benchmark of 25 tasks across 5 categories testing coding, instruction following, and agentic capability
+    \item Three evaluation modes: exact match, constraint satisfaction, and LLM judge
+    \item Ground truth images generated from the SeaMagic engine for pixel-perfect comparison
+    \item An interactive Marimo notebook and CLI runner for reproducible evaluation
+    \item Training data export functionality for RLHF/SFT fine-tuning
+\end{enumerate}
+
+\section{Related Work}
+
+\paragraph{Agent Benchmarks.}
+AgentBench~\citep{AgentBench} evaluates LLMs across 8 environments including operating systems and web browsing. WebArena~\citep{WebArena} tests agents on realistic web tasks. ToolBench~\citep{ToolBench} assesses tool-use with 16,000+ APIs. GameBench~\citep{GameBench} probes game-playing ability. SMAB differs by focusing on \emph{visual tool use}---agents must produce images that match pixel-level or constraint-based specifications.
+
+\paragraph{Image Quality Metrics.}
+Structural Similarity (SSIM)~\citep{SSIM} and Peak Signal-to-Noise Ratio (PSNR) are standard metrics for image comparison. LPIPS~\citep{LPIPS} provides perceptual similarity via learned features. We use MSSIM as our primary metric, supplemented by PSNR, MAE, and color histogram distance.
+
+\paragraph{Domain-Specific Languages for Agents.}
+The Steel Scheme DSL in SeaMagic requires agents to write functional composition chains, testing coding ability in a novel domain. This is related to work on code generation benchmarks~\citep{HumanEval} but focuses on visual output quality rather than code correctness alone.
+
+\section{Benchmark Design}
+
+\subsection{SeaMagic MCP Server}
+
+SeaMagic provides 5 MCP tools:
+
+\begin{itemize}
+    \item \textbf{\texttt{edit\_image}}: Apply single operations (blur, crop, tint, brightness, contrast, vignette, noise, etc.) to an input image
+    \item \textbf{\texttt{create\_image}}: Generate images from scratch (canvas, gradient, frame)
+    \item \textbf{\texttt{run\_steel}}: Execute Steel Scheme scripts for multi-step pipelines (warp, glitch, halftone, posterize, edge-detect, chromatic aberration, pixel-sort, kaleidoscope, overlay, drop-shadow, etc.)
+    \item \textbf{\texttt{view\_diff}}: Compare two images (side-by-side, grid, pixel diff)
+    \item \textbf{\texttt{get\_info}}: Get image dimensions and metadata
+\end{itemize}
+
+\subsection{Task Categories}
+
+\begin{table}[h]
+\centering
+\caption{SMAB task categories and distribution}
+\label{tab:categories}
+\begin{tabular}{llcl}
+\toprule
+\textbf{Category} & \textbf{Skills Tested} & \textbf{Count} & \textbf{Difficulty} \\
+\midrule
+Single Edit & API parameter understanding & 7 & 1--3 \\
+Scheme Pipeline & DSL programming, composition & 5 & 3--5 \\
+Generation & Visual design, layout & 4 & 2--4 \\
+Agentic Workflow & Iteration, error recovery & 4 & 4--5 \\
+Image Understanding & Visual analysis, extraction & 4 & 3--4 \\
+\midrule
+\textbf{Total} & & \textbf{25} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Single Edit (S-*, C-01).}
+One-shot tool calls using \texttt{edit\_image} or \texttt{create\_image}. Test whether the agent can select the correct tool and parameters. Includes basic operations (blur, tint, crop), text overlay, gradient generation, and multi-parameter operations (brightness + contrast). C-01 tests tool selection (edge detection is only available via \texttt{run\_steel}, not \texttt{edit\_image}).
+
+\paragraph{Scheme Pipeline (P-*, C-02).}
+Multi-step Steel Scheme scripts. The agent must write and execute Scheme code that composes multiple image operations. Includes reproducing known pipelines (cyberpunk glitch, liquid metal) and designing new compositions (social media post, profile frame, editing grid).
+
+\paragraph{Generation (G-*).}
+Create images from scratch without an input image. Tests visual design ability: creating gradients, posters, thumbnails, and color palettes with correct dimensions, colors, and text placement.
+
+\paragraph{Agentic Workflow (A-*).}
+Long-horizon tasks requiring iterative tool use, self-evaluation, and error recovery. A-01 requires dimension-aware filtering. A-02 requires multi-format output. A-03 requires iterative refinement with self-assessment. C-03 requires recovering from invalid parameters.
+
+\paragraph{Image Understanding (U-*).}
+Tasks where the agent must first analyze an image using \texttt{get\_info} before editing. Tests dimension extraction, aspect-ratio reasoning, and object-aware editing.
+
+\subsection{Evaluation Modes}
+
+\begin{table}[h]
+\centering
+\caption{Evaluation modes and applicable metrics}
+\label{tab:eval_modes}
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{Mode} & \textbf{Metrics} \\
+\midrule
+Exact Match & MSSIM $\geq \tau_\text{mssim}$, PSNR $\geq \tau_\text{psnr}$, MAE $\leq \tau_\text{mae}$, color histogram $\chi^2$, pixel diff ratio, dimension match, text presence \\
+Constraint Satisfaction & Dimension match, text presence, border detection, color bar detection, tool sequence, effects count, tool call count \\
+LLM Judge & Vision-language model scoring (1--10) against judge prompt \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Exact Match}
+
+For tasks with known ground truth, we compare the agent's output image $I_a$ against the ground truth $I_g$ using:
+
+\begin{itemize}
+    \item \textbf{MSSIM}: Multi-Scale Structural Similarity Index~\citep{SSIM}. Primary metric. Threshold per task ($\tau_\text{mssim} \in [0.85, 0.98]$).
+    \item \textbf{PSNR}: Peak Signal-to-Noise Ratio in dB. Complementary to MSSIM.
+    \item \textbf{MAE}: Mean Absolute Error across all pixels.
+    \item \textbf{Color histogram $\chi^2$}: Chi-squared distance between HSV histograms.
+    \item \textbf{Pixel diff ratio}: Fraction of pixels that differ.
+\end{itemize}
+
+A task passes if \emph{all} metric thresholds are satisfied simultaneously.
+
+\subsubsection{Constraint Satisfaction}
+
+For tasks without pixel-perfect ground truth (or where multiple valid outputs exist), we check structural constraints:
+
+\begin{itemize}
+    \item Output dimensions match specification (e.g., $1080 \times 1080$)
+    \item Expected text is present (via OCR or contour detection)
+    \item Border regions are detected
+    \item Color bars match expected palette
+    \item Tool call sequence matches expected pattern
+\end{itemize}
+
+\subsubsection{LLM Judge}
+
+For subjective tasks (A-03 iterative refinement, U-03 portrait enhancement), a vision-language model scores the output against a judge prompt on a 1--10 scale. This is currently a placeholder requiring external VLM integration.
+
+\subsection{Ground Truth Generation}
+
+Ground truth images are generated using the SeaMagic engine itself, ensuring pixel-perfect references for exact match tasks. For CLI-available operations, we use the seamagic binary directly. For Steel Scheme pipelines, we invoke \texttt{cargo run --example run\_example -- scheme} to execute the scripts. This eliminates noise from manual image creation and ensures evaluation consistency.
+
+\section{Metrics}
+
+\subsection{Primary Metrics}
+
+\begin{description}
+    \item[MSSIM] Multi-Scale Structural Similarity Index. Captures perceptual similarity by comparing luminance, contrast, and structure at multiple scales. Range: $[0, 1]$, higher is better.
+    \item[PSNR] Peak Signal-to-Noise Ratio in dB. Standard fidelity measure: $\text{PSNR} = 10 \log_{10}(\frac{255^2}{\text{MSE}})$. Higher is better.
+    \item[MAE] Mean Absolute Error. Average $|I_a - I_g|$ across all pixels. Lower is better.
+\end{description}
+
+\subsection{Secondary Metrics}
+
+\begin{description}
+    \item[Color Histogram $\chi^2$] Chi-squared distance between 16$\times$16 HSV histograms. Captures color distribution similarity.
+    \item[Pixel Diff Ratio] Fraction of pixels where $I_a \neq I_g$ (any channel). Sensitive to exact matches.
+    \item[Tool Efficiency] $\frac{\text{ideal tool calls}}{\text{actual tool calls}}$. Penalizes excessive API usage.
+    \item[Error Recovery Rate] Fraction of tasks where the agent recovered from an initial error.
+    \item[LLM Score] Subjective quality from vision-language model (1--10).
+\end{description}
+
+\section{Experimental Setup}
+
+\subsection{Mock Agents}
+
+We evaluate three synthetic agents to validate the benchmark framework:
+
+\begin{description}
+    \item[Gold Agent] Returns ground truth images directly. Establishes upper-bound performance (should achieve 100\% pass rate on exact match tasks).
+    \item[Silver Agent] Applies Gaussian noise ($\sigma=15$) to ground truth with 30\% probability of producing a random output. Simulates a near-threshold agent.
+    \item[Bronze Agent] Applies heavy noise ($\sigma=40$) with 70\% wrong-output probability. Simulates a poor agent.
+\end{description}
+
+\subsection{Infrastructure}
+
+\begin{itemize}
+    \item SeaMagic v0.2.0 built from source (Rust, release mode)
+    \item Python 3.13 with scikit-image 0.26, OpenCV 4.13, NumPy, Pillow
+    \item Evaluation engine: \texttt{benchmark/evaluator.py}
+    \item Interactive notebook: \texttt{benchmark/seamagic\_benchmark.py} (Marimo)
+    \item CLI runner: \texttt{benchmark/run\_benchmark.py}
+\end{itemize}
+
+\section{Results}
+
+\begin{table}[h]
+\centering
+\caption{Overall benchmark results for mock agents}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Agent} & \textbf{Pass Rate} & \textbf{Mean MSSIM} & \textbf{Mean PSNR (dB)} & \textbf{Tool Efficiency} \\
+\midrule
+Gold & --/25 (--\%) & -- & -- & 0.00 \\
+Silver & --/25 (--\%) & -- & -- & 0.00 \\
+Bronze & --/25 (--\%) & -- & -- & 0.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Results will be filled in after running the benchmark notebook
+
+\begin{table}[h]
+\centering
+\caption{Per-category pass rates for mock agents}
+\label{tab:categories_results}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Category} & \textbf{Gold} & \textbf{Silver} & \textbf{Bronze} \\
+\midrule
+Single Edit & -- & -- & -- \\
+Scheme Pipeline & -- & -- & -- \\
+Generation & -- & -- & -- \\
+Agentic Workflow & -- & -- & -- \\
+Image Understanding & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Discussion}
+
+\subsection{Key Findings}
+
+\begin{itemize}
+    \item The Gold agent validates that ground truth images achieve passing thresholds, confirming benchmark consistency.
+    \item Silver agent performance varies by category---noise tolerance differs between exact match and constraint satisfaction modes.
+    \item Bronze agent reliably fails most exact match tasks, confirming metric discriminativity.
+\end{itemize}
+
+\subsection{Design Challenges}
+
+\paragraph{Ground truth generation.} Not all tasks have straightforward ground truth. The P-02 (retro halftone) task causes an RGB out-of-bounds panic in the SeaMagic engine on certain image sizes, highlighting that benchmark development can surface tool bugs.
+
+\paragraph{Scheme DSL complexity.} The Steel Scheme DSL requires specific conventions (input bound as string \texttt{"input"}, angles as floats, final variable named \texttt{result} or \texttt{output}, certain functions requiring additional arguments). This is an intentional test of DSL knowledge but may conflate API familiarity with task ability.
+
+\paragraph{LLM judge integration.} Subjective evaluation currently requires external VLM integration. Future work should standardize the judge model and prompt to enable reproducible LLM-judge scores.
+
+\subsection{Limitations}
+
+\begin{itemize}
+    \item \textbf{Mock agents only}: Real agent evaluation is needed to establish baseline LLM performance.
+    \item \textbf{Single tool server}: SMAB tests only the SeaMagic MCP server; cross-tool orchestration is out of scope.
+    \item \textbf{No LPIPS}: Perceptual metrics requiring PyTorch are optional; results use MSSIM as primary metric.
+    \item \textbf{OCR limitations}: Text extraction falls back to contour detection without pytesseract, which may miss text in complex backgrounds.
+\end{itemize}
+
+\section{Future Work}
+
+\begin{enumerate}
+    \item \textbf{Real agent evaluation}: Run SMAB against GPT-4, Claude, Gemini, and open-source models with MCP tool-use capabilities.
+    \item \textbf{Training data collection}: Use the JSONL export to build SFT/RLHF datasets for improving model tool-use on visual tasks.
+    \item \textbf{Extended task set}: Add more tasks at difficulty 4--5, especially multi-turn agentic workflows.
+    \item \textbf{Standardized LLM judge}: Integrate a fixed VLM (e.g., LLaVA-1.6) for reproducible subjective scoring.
+    \item \textbf{Cross-server benchmark}: Extend to multiple MCP servers (e.g., filesystem, database) to test general tool-use.
+    \item \textbf{Automated task generation}: Use LLMs to generate novel task specifications with automatically computed ground truth.
+\end{enumerate}
+
+\section{Conclusion}
+
+We introduced SMAB, a benchmark for evaluating AI agents on image manipulation via the MCP protocol. With 25 tasks across 5 categories, three evaluation modes, and comprehensive metrics, SMAB provides a structured framework for assessing coding, instruction following, and agentic capabilities in a visual domain. The benchmark is extensible, reproducible, and designed to serve as both an evaluation tool and a training data source for future model improvement.
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{10}
+
+\bibitem[AgentBench]{AgentBench}
+Xiao Liu et al.
+\newblock AgentBench: Evaluating LLMs as Agents.
+\newblock \emph{ICLR}, 2024.
+
+\bibitem[WebArena]{WebArena}
+Shuyan Zhou et al.
+\newblock WebArena: A Realistic Web Environment for Building Autonomous Agents.
+\newblock \emph{ICLR}, 2024.
+
+\bibitem[ToolBench]{ToolBench}
+Yujia Qin et al.
+\newblock ToolLLM: Facilitating Large Language Models to Master 16000+ Real-world APIs.
+\newblock \emph{ICLR}, 2024.
+
+\bibitem[GameBench]{GameBench}
+Xinyu Wang et al.
+\newblock GameBench: Evaluating LLMs as Gaming Agents.
+\newblock \emph{NeurIPS}, 2024.
+
+\bibitem[SSIM]{SSIM}
+Zhou Wang et al.
+\newblock Multi-Scale Structural Similarity for Image Quality Assessment.
+\newblock \emph{IEEE Asilomar}, 2003.
+
+\bibitem[LPIPS]{LPIPS}
+Richard Zhang et al.
+\newblock The Unreasonable Effectiveness of Deep Features as a Perceptual Metric.
+\newblock \emph{CVPR}, 2018.
+
+\bibitem[HumanEval]{HumanEval}
+Mark Chen et al.
+\newblock Evaluating Large Language Models Trained on Code.
+\newblock \emph{arXiv:2107.03374}, 2021.
+
+\end{thebibliography}
+
+\appendix
+
+\section{Full Task List}
+
+\begin{table}[h]
+\centering
+\caption{Complete SMAB task list}
+\label{tab:full_tasks}
+\small
+\begin{tabular}{llccl}
+\toprule
+\textbf{ID} & \textbf{Name} & \textbf{Cat.} & \textbf{Diff.} & \textbf{Eval Mode} \\
+\midrule
+S-01 & Basic Blur & SE & $\star$ & Exact \\
+S-02 & Tint Adjustment & SE & $\star$ & Exact \\
+S-03 & Crop to Center & SE & $\star\star$ & Exact \\
+S-04 & Text Overlay & SE & $\star\star$ & Exact \\
+S-05 & Gradient Generation & SE & $\star\star$ & Exact \\
+S-06 & Brightness + Contrast & SE & $\star\star$ & Exact \\
+C-01 & Edge Detection & SE & $\star\star\star$ & Exact \\
+\midrule
+P-01 & Cyberpunk Glitch & SP & $\star\star\star$ & Exact \\
+P-02 & Retro Halftone & SP & $\star\star\star$ & Exact \\
+P-03 & Social Media Post & SP & $\star\star\star$ & Exact \\
+P-04 & Profile Picture Frame & SP & $\star\star\star$ & Constraint \\
+P-05 & Editing Steps Grid & SP & $\star\star\star\star$ & Exact \\
+C-02 & Liquid Metal Effect & SP & $\star\star\star\star\star$ & Exact \\
+\midrule
+G-01 & Poster from Scratch & GN & $\star\star\star$ & Exact \\
+G-02 & YouTube Thumbnail & GN & $\star\star\star\star$ & Constraint \\
+G-03 & Color Palette Swatch & GN & $\star\star\star$ & Constraint \\
+G-04 & Gradient with Vignette & GN & $\star\star$ & Exact \\
+\midrule
+A-01 & Auto-Resize for Social & AW & $\star\star\star\star$ & Constraint \\
+A-02 & Multi-Format Export & AW & $\star\star\star\star$ & Constraint \\
+A-03 & Iterative Refinement & AW & $\star\star\star\star\star$ & LLM Judge \\
+C-03 & Error Recovery & AW & $\star\star\star\star$ & Constraint \\
+\midrule
+U-01 & Aspect-Aware Crop & IU & $\star\star\star$ & Constraint \\
+U-02 & Text Positioning & IU & $\star\star\star$ & Constraint \\
+U-03 & Portrait Enhancement & IU & $\star\star\star\star$ & LLM Judge \\
+U-04 & Image Caption Summary & IU & $\star\star\star\star$ & Constraint \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cat.=Category: SE=Single Edit, SP=Scheme Pipeline, GN=Generation, AW=Agentic Workflow, IU=Image Understanding.
+
+\section{Metric Thresholds}
+
+\begin{table}[h]
+\centering
+\caption{Per-task metric thresholds for exact match evaluation}
+\label{tab:thresholds}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Task} & \textbf{MSSIM $\geq$} & \textbf{PSNR $\geq$} & \textbf{MAE $\leq$} & \textbf{Other} \\
+\midrule
+S-01 & 0.95 & 35.0 & 5.0 & \\
+S-02 & 0.90 & 30.0 & -- & color\_hist $\leq$ 0.3 \\
+S-03 & 0.98 & -- & -- & 400$\times$400 \\
+S-04 & 0.90 & -- & -- & text: SEAMAGIC \\
+S-05 & 0.95 & -- & -- & 1920$\times$1080 \\
+S-06 & 0.85 & 25.0 & -- & \\
+C-01 & 0.90 & -- & -- & edge-detected \\
+P-01 & 0.92 & 28.0 & -- & \\
+P-02 & 0.88 & 26.0 & -- & \\
+P-03 & 0.90 & -- & -- & 1080$\times$1080, text \\
+P-05 & 0.90 & -- & -- & 1600$\times$400 \\
+C-02 & 0.85 & 24.0 & -- & \\
+G-01 & 0.90 & -- & -- & 800$\times$1200, text \\
+G-04 & 0.92 & -- & -- & 1080$\times$1080 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

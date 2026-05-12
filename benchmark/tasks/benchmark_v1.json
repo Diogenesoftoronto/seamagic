@@ -1,0 +1,448 @@
+{
+  "benchmark_name": "SeaMagic Agent Benchmark (SMAB) v1.0",
+  "description": "A benchmark for evaluating AI agents' ability to use the SeaMagic MCP server for image manipulation across coding, instruction-following, and visual understanding dimensions.",
+  "version": "1.0.0",
+  "evaluation_modes": {
+    "exact_match": "Target parameters are known; agent output is compared to ground truth using image similarity metrics.",
+    "constraint_satisfaction": "Agent must satisfy visual or structural constraints; scored by checking properties of output.",
+    "llm_judge": "Subjective criteria evaluated by a vision-language model comparing output to target description."
+  },
+  "metrics": {
+    "mssim": "Multi-Scale Structural Similarity (higher = more similar to ground truth)",
+    "psnr": "Peak Signal-to-Noise Ratio in dB",
+    "lpips": "Learned Perceptual Image Patch Similarity (lower = more perceptually similar)",
+    "lpip-alex": "LPIPS with AlexNet backbone",
+    "pixel_diff_ratio": "Ratio of differing pixels (lower = more similar)",
+    "color_histogram_distance": "Chi-squared distance between HSV color histograms",
+    "mean_absolute_error": "Average absolute pixel difference",
+    "hausdorff_text": "Text extraction and edit distance from expected text",
+    "dimension_match": "Output dimensions match target",
+    "tool_usage_efficiency": "Number of tool calls / minimum required",
+    "success_rate": "Binary pass/fail based on threshold"
+  },
+  "categories": [
+    {
+      "id": "single_edit",
+      "name": "Single Edit",
+      "description": "One-shot tool calls using edit_image or create_image",
+      "skills_tested": ["API parameter understanding", "color specification", "spatial reasoning"]
+    },
+    {
+      "id": "scheme_pipeline",
+      "name": "Scheme Pipeline",
+      "description": "Multi-step Steel Scheme scripts with image composition",
+      "skills_tested": ["DSL programming", "functional composition", "intermediate state management"]
+    },
+    {
+      "id": "generation",
+      "name": "Image Generation",
+      "description": "Create images from scratch using create_image and compositional tools",
+      "skills_tested": ["Visual design", "color theory", "layout planning", "text positioning"]
+    },
+    {
+      "id": "agentic_workflow",
+      "name": "Agentic Workflow",
+      "description": "Long-horizon tasks requiring iterative tool use, error recovery, and decision-making",
+      "skills_tested": ["Iterative improvement", "error recovery", "multi-tool orchestration", "self-reflection"]
+    },
+    {
+      "id": "image_understanding",
+      "name": "Image Understanding",
+      "description": "Tasks requiring the agent to analyze an image before editing (e.g. extracting dimensions, finding objects)",
+      "skills_tested": ["Visual analysis", "dimension extraction", "object-aware editing", "aspect ratio preservation"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "S-01",
+      "category": "single_edit",
+      "name": "Basic Blur",
+      "difficulty": 1,
+      "description": "Apply a Gaussian blur with sigma=3.0 to the input image. Agent must use edit_image with operation=blur.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "operation": "blur",
+        "sigma": 3.0
+      },
+      "thresholds": {
+        "mssim_min": 0.95,
+        "psnr_min": 35.0,
+        "mae_max": 5.0
+      }
+    },
+    {
+      "id": "S-02",
+      "category": "single_edit",
+      "name": "Tint Adjustment",
+      "difficulty": 1,
+      "description": "Apply a cyan tint (#00CED1) at 30% intensity to the input image. Agent must use correct color and amount.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "operation": "tint",
+        "color": "#00CED1",
+        "amount": 0.3
+      },
+      "thresholds": {
+        "mssim_min": 0.90,
+        "psnr_min": 30.0,
+        "color_hist_max": 0.3
+      }
+    },
+    {
+      "id": "S-03",
+      "category": "single_edit",
+      "name": "Crop to Center",
+      "difficulty": 2,
+      "description": "Crop the input image to a 400x400 square from the center. Agent must use crop_center.",
+      "input": "fixtures/input_landscape.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "operation": "crop_center",
+        "width": 400,
+        "height": 400
+      },
+      "thresholds": {
+        "mssim_min": 0.98,
+        "dimension_match": [400, 400]
+      }
+    },
+    {
+      "id": "S-04",
+      "category": "single_edit",
+      "name": "Text Overlay",
+      "difficulty": 2,
+      "description": "Draw 'SEAMAGIC' in white (#FFFFFF) at position (50, 50) with font size 48.",
+      "input": "fixtures/input_1080x1080.png",
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "operation": "draw_text",
+        "text": "SEAMAGIC",
+        "x": 50,
+        "y": 50,
+        "color": "#FFFFFF",
+        "size": 48
+      },
+      "thresholds": {
+        "mssim_min": 0.90,
+        "text_presence": "SEAMAGIC"
+      }
+    },
+    {
+      "id": "S-05",
+      "category": "single_edit",
+      "name": "Gradient Generation",
+      "difficulty": 2,
+      "description": "Create a 1920x1080 linear gradient from #ff7e5f to #feb47b at 135 degrees.",
+      "input": null,
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "tool": "create_image",
+        "type": "gradient",
+        "width": 1920,
+        "height": 1080,
+        "startColor": "#ff7e5f",
+        "endColor": "#feb47b",
+        "angle": 135.0
+      },
+      "thresholds": {
+        "mssim_min": 0.95,
+        "dimension_match": [1920, 1080]
+      }
+    },
+    {
+      "id": "S-06",
+      "category": "single_edit",
+      "name": "Brightness + Contrast",
+      "difficulty": 2,
+      "description": "Increase brightness by 30 and contrast by 20. Agent must figure out to use edit_image twice or run_steel.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "operations": [
+          {"operation": "brightness", "value": 30},
+          {"operation": "contrast", "value": 20}
+        ]
+      },
+      "thresholds": {
+        "mssim_min": 0.85,
+        "psnr_min": 25.0
+      }
+    },
+    {
+      "id": "P-01",
+      "category": "scheme_pipeline",
+      "name": "Cyberpunk Glitch",
+      "difficulty": 3,
+      "description": "Reproduce the cyberpunk glitch pipeline: wave warp (15.0, 0.08), RGB split glitch (0.7), chromatic aberration (8.0), scanlines (3, 0.25), posterize to 6 levels.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_script": "examples/cyberpunk_glitch.scm",
+      "thresholds": {
+        "mssim_min": 0.92,
+        "psnr_min": 28.0
+      }
+    },
+    {
+      "id": "P-02",
+      "category": "scheme_pipeline",
+      "name": "Retro Halftone",
+      "difficulty": 3,
+      "description": "Apply duotone with #1a1a2e shadow and #e94560 highlight, then halftone with dot size 6 at 45 degrees in color mode, then vignette (0.4, 1.2).",
+      "input": "fixtures/input_logo.png",
+      "eval_mode": "exact_match",
+      "ground_truth_script": "examples/retro_halftone.scm",
+      "thresholds": {
+        "mssim_min": 0.88,
+        "psnr_min": 26.0
+      }
+    },
+    {
+      "id": "P-03",
+      "category": "scheme_pipeline",
+      "name": "Social Media Post",
+      "difficulty": 3,
+      "description": "Create a social media post: gradient background 1080x1080 from #667eea to #764ba2 at 135 degrees, add vignette (0.3), draw semi-transparent rectangle at (80,380) 920x140 with #16213e, draw text 'HELLO WORLD' at (200, 445) in #e94560 size 72.",
+      "input": null,
+      "eval_mode": "exact_match",
+      "ground_truth_script": "scheme_examples.scm",
+      "ground_truth_script_index": 0,
+      "thresholds": {
+        "mssim_min": 0.90,
+        "dimension_match": [1080, 1080],
+        "text_presence": "HELLO WORLD"
+      }
+    },
+    {
+      "id": "P-04",
+      "category": "scheme_pipeline",
+      "name": "Profile Picture Frame",
+      "difficulty": 3,
+      "description": "Crop input to center 400x400, blur with sigma 0.5, then composite onto a 420x420 frame with 10px #333333 border.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "ground_truth_script": "scheme_examples.scm",
+      "ground_truth_script_index": 3,
+      "thresholds": {
+        "dimension_match": [420, 420],
+        "border_presence": true,
+        "circular_mask": false
+      }
+    },
+    {
+      "id": "P-05",
+      "category": "scheme_pipeline",
+      "name": "Editing Steps Grid",
+      "difficulty": 4,
+      "description": "Create a 4-step visual grid showing: original, grayscale, tinted (#667eea, 0.3), and final vignette (0.4). Grid size 1600x400.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_script": "scheme_examples.scm",
+      "ground_truth_script_index": 7,
+      "thresholds": {
+        "mssim_min": 0.90,
+        "dimension_match": [1600, 400]
+      }
+    },
+    {
+      "id": "G-01",
+      "category": "generation",
+      "name": "Poster from Scratch",
+      "difficulty": 3,
+      "description": "Create a poster: 800x1200 gradient from #0f0f23 to #1a1a2e at 45 degrees, add drop shadow, add 'EPIC TITLE' at (100,900) in #e94560 size 96, add 'A FILM BY YOU' at (100,1040) in #ffffff size 32.",
+      "input": null,
+      "eval_mode": "exact_match",
+      "ground_truth_script": "scheme_examples.scm",
+      "ground_truth_script_index": 2,
+      "thresholds": {
+        "mssim_min": 0.90,
+        "dimension_match": [800, 1200],
+        "text_presence": ["EPIC TITLE", "A FILM BY YOU"]
+      }
+    },
+    {
+      "id": "G-02",
+      "category": "generation",
+      "name": "YouTube Thumbnail",
+      "difficulty": 4,
+      "description": "Create a 1280x720 thumbnail with: red (#ff0000) background, white (#ffffff) text 'CLICK ME' centered in size 96, and a blue (#0000ff) rectangle border 20px from edges.",
+      "input": null,
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "dimension_match": [1280, 720],
+        "text_presence": "CLICK ME",
+        "border_presence": true,
+        "dominant_color_distance": 0.2
+      }
+    },
+    {
+      "id": "G-03",
+      "category": "generation",
+      "name": "Color Palette Swatch",
+      "difficulty": 3,
+      "description": "Create a 4-color palette swatch: 800x200 image divided into 4 equal vertical bars with colors #e63946, #f1faee, #a8dadc, #457b9d.",
+      "input": null,
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "dimension_match": [800, 200],
+        "color_bars": ["#e63946", "#f1faee", "#a8dadc", "#457b9d"]
+      }
+    },
+    {
+      "id": "G-04",
+      "category": "generation",
+      "name": "Gradient with Vignette",
+      "difficulty": 2,
+      "description": "Create a 1080x1080 purple-to-pink gradient (#667eea to #764ba2, 135 degrees) with strong vignette (0.6, 1.0, no color).",
+      "input": null,
+      "eval_mode": "exact_match",
+      "thresholds": {
+        "dimension_match": [1080, 1080],
+        "mssim_min": 0.92
+      }
+    },
+    {
+      "id": "A-01",
+      "category": "agentic_workflow",
+      "name": "Auto-Resize for Social",
+      "difficulty": 4,
+      "description": "Agent must: 1) Get dimensions of input image using get_info, 2) Determine if image is portrait, landscape, or square, 3) Crop/resize to 1080x1080 maintaining subject in center, 4) Apply a brand-consistent filter (duotone with brand colors), 5) Add centered text overlay. Agent must adapt based on input dimensions.",
+      "input": "fixtures/input_landscape.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "dimension_match": [1080, 1080],
+        "tool_sequence": ["get_info", "crop_center", "duotone", "draw_text"],
+        "text_presence": true
+      }
+    },
+    {
+      "id": "A-02",
+      "category": "agentic_workflow",
+      "name": "Multi-Format Export",
+      "difficulty": 4,
+      "description": "Given an input image, create three variants: 1) Instagram square (1080x1080), 2) Story (1080x1920), 3) Twitter header (1500x500). Each with a subtly different filter and consistent branding text.",
+      "input": "fixtures/input_landscape.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "outputs_count": 3,
+        "dimensions": [[1080, 1080], [1080, 1920], [1500, 500]],
+        "text_presence": true,
+        "minimum_mssim_between_variants": 0.5
+      }
+    },
+    {
+      "id": "A-03",
+      "category": "agentic_workflow",
+      "name": "Iterative Refinement",
+      "difficulty": 5,
+      "description": "Agent starts with a base image. Through iterative tool use (at least 3 rounds), transform it into a 'cyberpunk aesthetic' image. Agent must self-evaluate and improve. Final output should have at least 3 distinct effects applied.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "llm_judge",
+      "judge_prompt": "Rate how well this image captures a cyberpunk aesthetic on a scale of 1-10. Cyberpunk should include: neon colors, glitch effects, scanlines, high contrast, futuristic feel. The image should show evidence of multiple distinct editing steps (not just a single filter).",
+      "thresholds": {
+        "llm_score_min": 7.0,
+        "minimum_effects_count": 3,
+        "tool_calls_min": 3
+      }
+    },
+    {
+      "id": "U-01",
+      "category": "image_understanding",
+      "name": "Aspect-Aware Crop",
+      "difficulty": 3,
+      "description": "Agent must first query image dimensions, then crop a 16:9 slice from the vertical center of a tall portrait image. Output must be exactly the right dimensions.",
+      "input": "fixtures/input_tall_portrait.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "dimension_match": [540, 960],
+        "aspect_ratio": "16:9",
+        "first_tool": "get_info"
+      }
+    },
+    {
+      "id": "U-02",
+      "category": "image_understanding",
+      "name": "Text Positioning Relative to Image",
+      "difficulty": 3,
+      "description": "Agent must place text 'Bottom Right' at the bottom-right corner of any image, regardless of size. Must query dimensions first, then calculate correct (x,y).",
+      "input": "fixtures/input_variable.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "first_tool": "get_info",
+        "text_presence": "Bottom Right",
+        "text_position_estimate": "bottom_right"
+      }
+    },
+    {
+      "id": "U-03",
+      "category": "image_understanding",
+      "name": "Portrait Enhancement",
+      "difficulty": 4,
+      "description": "Agent must analyze portrait image, determine crop to face region, apply skin-tone aware warmth filter, and add subtle vignette. Agent must reason about what 'face region' means.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "llm_judge",
+      "judge_prompt": "Rate the portrait enhancement quality 1-10. Good enhancement should: center the face, apply subtle warmth, have a vignette framing the subject, not over-process skin tones."
+    },
+    {
+      "id": "U-04",
+      "category": "image_understanding",
+      "name": "Image Caption with Visual Summary",
+      "difficulty": 4,
+      "description": "Agent must describe the input image in text, then create a visual summary showing: a small thumbnail, a color palette extracted from the image, and the caption text. This tests visual understanding + creation.",
+      "input": "fixtures/input_landscape.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "dimension_match": [800, 600],
+        "thumbnail_presence": true,
+        "text_presence": true,
+        "color_palette_presence": true
+      }
+    },
+    {
+      "id": "C-01",
+      "category": "single_edit",
+      "name": "Edge Detection",
+      "difficulty": 3,
+      "description": "Apply Sobel edge detection to an image. This is only available in run_steel, not edit_image. Tests whether agent can select the right tool.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_params": {
+        "tool": "run_steel",
+        "script": "(define result (image-edge-detect input 20 #f))"
+      },
+      "thresholds": {
+        "mssim_min": 0.90,
+        "output_is_edge_detected": true
+      }
+    },
+    {
+      "id": "C-02",
+      "category": "scheme_pipeline",
+      "name": "Liquid Metal Effect",
+      "difficulty": 5,
+      "description": "Reproduce the liquid metal distortion pipeline. Requires warp, liquify, and emboss in sequence. Tests advanced DSL knowledge.",
+      "input": "fixtures/input_portrait.jpg",
+      "eval_mode": "exact_match",
+      "ground_truth_script": "examples/liquid_metal.scm",
+      "thresholds": {
+        "mssim_min": 0.85,
+        "psnr_min": 24.0
+      }
+    },
+    {
+      "id": "C-03",
+      "category": "agentic_workflow",
+      "name": "Error Recovery - Invalid Parameters",
+      "difficulty": 4,
+      "description": "Agent is presented with a task that initially fails (e.g., crop with dimensions larger than image). Agent must read error, diagnose, and produce a corrected output.",
+      "input": "fixtures/input_small.jpg",
+      "eval_mode": "constraint_satisfaction",
+      "thresholds": {
+        "error_handling": true,
+        "eventually_succeeds": true,
+        "dimension_reasonable": true
+      }
+    }
+  ]
+}

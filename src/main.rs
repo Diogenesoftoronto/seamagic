@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use image::{DynamicImage, GenericImageView, ImageFormat, Rgba, RgbaImage};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use seamagic::operations::*;
@@ -17,6 +18,17 @@ struct Cli {
 enum Commands {
     #[command(about = "Start MCP stdio server")]
     Mcp,
+
+    #[command(about = "Start MCP HTTP server")]
+    HttpMcp {
+        /// Address to bind (default: 0.0.0.0:3000)
+        #[arg(long, default_value = "0.0.0.0:3000")]
+        bind: SocketAddr,
+
+        /// Route path (default: /mcp)
+        #[arg(long, default_value = "/mcp")]
+        path: String,
+    },
 
     #[command(about = "Get image dimensions")]
     Info {
@@ -505,6 +517,17 @@ fn run_mcp_server() -> anyhow::Result<()> {
     })
 }
 
+fn run_http_mcp_server(bind: SocketAddr, path: &str) -> anyhow::Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        tracing_subscriber::fmt()
+            .with_writer(std::io::stderr)
+            .with_ansi(false)
+            .init();
+        seamagic::mcp::run_http_server(bind, path).await
+    })
+}
+
 fn main() -> anyhow::Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
 
@@ -517,6 +540,8 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Mcp => run_mcp_server(),
+
+        Commands::HttpMcp { bind, path } => run_http_mcp_server(bind, &path),
 
         Commands::Info { input } => {
             let img = load_image(&input)?;

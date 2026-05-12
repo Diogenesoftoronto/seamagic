@@ -1,0 +1,2 @@
+[tools]
+"cargo:https://github.com/diogenesoftoronto/seamagic" = "latest"

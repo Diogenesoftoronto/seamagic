@@ -73,39 +73,46 @@ Then use any MCP client (Claude, Cursor, etc.):
 }
 ```
 
-### With tcli (Terminal CLI for AI MCP)
+### MCP-to-CLI (via unmcp / mcp2cli)
+
+Use MCP server tools directly from your terminal. No AI context overhead, just lean CLI access to the same tools.
+
+**unmcp** (`uvx unmcp`)  
+**mcp2cli** (`uvx mcp2cli --mcp-stdio`)
 
 ```bash
-# Get image dimensions
-tcli seamagic get_info --image "$(base64 -w0 photo.png)"
-
-# Apply a quick blur
-tcli seamagic edit_image \
+# unmcp — initialize once, then call by name
+# Add seamagic to .unmcp/.mcp.json, then:
+uvx unmcp clt init seamagic
+uvx unmcp seamagic edit_image \
   --image "$(base64 -w0 photo.png)" \
-  --operation blur \
-  --sigma 2.5 \
+  --operation blur --sigma 2.5 \
   --output_file blurred.png
 
+# mcp2cli — ad-hoc, no config file
+uvx mcp2cli --mcp-stdio "/path/to/seamagic" --list
+uvx mcp2cli --mcp-stdio "/path/to/seamagic" edit_image \
+  --image "$(base64 -w0 photo.png)" \
+  --operation blur --sigma 2.5 \
+  --output_file blurred.png
+
+# Get image dimensions
+uvx mcp2cli --mcp-stdio "/path/to/seamagic" get_info \
+  --image "$(base64 -w0 photo.png)"
+
 # Create a canvas
-tcli seamagic create_image \
-  --type canvas \
-  --width 1080 --height 1080 \
-  --color "#1a1a2e" \
-  --output_file bg.png
+uvx mcp2cli --mcp-stdio "/path/to/seamagic" create_image \
+  --type canvas --width 1080 --height 1080 \
+  --color "#1a1a2e" --output_file bg.png
 
 # Run a full Scheme pipeline
-tcli seamagic run_steel \
+uvx mcp2cli --mcp-stdio "/path/to/seamagic" run_steel \
   --inputImage "$(base64 -w0 portrait.jpg)" \
-  --script '((define b "input")
-    (define w (image-warp b "wave" 15.0 0.08))
-    (define g (image-glitch w "rgb_split" 0.7 42))
-    (define c (image-chromatic-aberration g 8.0 #t))
-    (define s (image-scanlines c 3 0.25 1))
-    (define result (image-posterize s 6)))' \
+  --script '(define result (image-posterize (image-scanlines (image-chromatic-aberration (image-glitch (image-warp "input" "wave" 15.0 0.08) "rgb_split" 0.7 42) 8.0 #t) 3 0.25 1) 6))' \
   --output_file cyberpunk.png
 
 # Compare two images side-by-side
-tcli seamagic view_diff \
+uvx mcp2cli --mcp-stdio "/path/to/seamagic" view_diff \
   --mode side_by_side \
   --originalImage "$(base64 -w0 original.png)" \
   --editedImage "$(base64 -w0 edited.png)" \

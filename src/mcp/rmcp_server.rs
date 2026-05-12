@@ -1,13 +1,20 @@
 use crate::operations::preview::*;
 use crate::operations::*;
+use axum::Router;
 use image::{DynamicImage, GenericImageView, ImageFormat};
 use rmcp::{
     ErrorData, ServerHandler, ServiceExt,
     model::*,
     service::RequestContext,
     transport::stdio,
+    transport::streamable_http_server::{
+        session::local::LocalSessionManager,
+        tower::StreamableHttpService,
+        StreamableHttpServerConfig,
+    },
 };
 use serde_json::{json, Value};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -455,4 +462,46 @@ pub async fn run_stdio_server() -> anyhow::Result<()> {
     let service = server.serve(stdio()).await?;
     service.waiting().await?;
     Ok(())
+}
+
+pub async fn run_http_server(bind: SocketAddr, path: &str) -> anyhow::Result<()> {
+    tracing::info!("seamagic MCP server starting on http://{bind}{path}");
+    let server = ImageDesignServer::new();
+    let mut config = StreamableHttpServerConfig::default();
+    config.allowed_hosts = allowed_hosts_for(bind);
+
+    let normalized_path = normalize_path(path);
+    let factory = move || Ok(server.clone());
+    let service = StreamableHttpService::new(factory, Arc::new(LocalSessionManager::default()), config);
+    let app = Router::new().route_service(&normalized_path, service);
+    let listener = tokio::net::TcpListener::bind(bind).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+fn normalize_path(path: &str) -> String {
+    let trimmed = path.trim();
+    if trimmed.is_empty() || trimmed == "/" {
+        return "/mcp".to_string();
+    }
+    if trimmed.starts_with('/') {
+        trimmed.to_string()
+    } else {
+        format!("/{}", trimmed)
+    }
+}
+
+fn allowed_hosts_for(bind_addr: SocketAddr) -> Vec<String> {
+    let host = bind_addr.ip().to_string();
+    let port = bind_addr.port();
+    vec![
+        "localhost".to_string(),
+        format!("localhost:{port}"),
+        "127.0.0.1".to_string(),
+        format!("127.0.0.1:{port}"),
+        "::1".to_string(),
+        format!("[::1]:{port}"),
+        host.clone(),
+        format!("{host}:{port}"),
+    ]
 }
